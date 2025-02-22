@@ -1,0 +1,84 @@
+{-# LANGUAGE OverloadedStrings #-}
+module Json.Simple where
+
+import Data.Kind       (Type)
+import Data.Map.Strict (Map)
+import Fmt             ((+|), (|+))
+import Control.Applicative (Alternative (..))
+
+-- import Data.Map.Strict qualified as Map
+
+data JsonValue :: Type where
+    JsonNull   :: JsonValue
+    JsonBool   :: Bool        -> JsonValue
+    JsonNumber :: Integer     -> JsonValue
+    JsonString :: String      -> JsonValue
+    JsonArray  :: [JsonValue] -> JsonValue
+    JsonObject :: Map String JsonValue -> JsonValue
+    deriving (Show, Eq)
+
+newtype Result :: Type -> Type where
+    Result :: { getEither :: Either String a } -> Result a
+    deriving (Show)
+
+newtype Parser :: Type -> Type where
+    Parser ::
+        { runParser :: String -> Result (a, String)
+        } -> Parser a
+
+instance Functor Parser where
+    fmap f (Parser p1) =
+        Parser $ \input -> Result $ do
+            (a, input') <- getEither $ p1 input
+            pure (f a, input')
+
+instance Applicative Parser where
+    pure a = Parser $ \input -> Result $ pure (a, input)
+
+    (Parser f) <*> (Parser a) =
+        Parser $ \input -> Result $ do
+            (f1, input1) <- getEither $ f input
+            (a1, input2) <- getEither $ a input1
+            pure (f1 a1, input2)
+
+instance Functor Result where
+    fmap f (Result ei) = Result $ fmap f ei
+
+instance Applicative Result where
+    pure = Result . pure
+    Result f <*> Result ei = Result $ f <*> ei
+
+instance Alternative Result where
+    empty = Result . Left $ "empty"
+
+    Result (Right a) <|> _ = Result (Right a)
+    Result (Left  _) <|> b = b
+
+instance Alternative Parser where
+    empty = Parser $ \_ -> Result $ Left "empty parser"
+
+    (<|>) :: Parser a -> Parser a -> Parser a
+    (Parser p1) <|> (Parser p2) = Parser $ \input -> p1 input <|> p2 input
+
+jsonNullP :: Parser JsonValue
+jsonNullP = (\_ -> JsonNull) <$> stringP "null"
+
+charP :: Char -> Parser Char
+charP c = Parser go
+  where
+    go (x : xs) | x == c = Result $ Right (c, xs)
+    go (s : _ )          = Result . Left $ "The char '"+| s |+"' is not '"+| c |+"'"
+    go []                = Result $ Left "Empty input"
+
+stringP :: String -> Parser String
+stringP = sequenceA . map charP
+
+jsonBoolP :: Parser JsonValue
+jsonBoolP = go <$> (stringP "true" <|> stringP "false")
+  where
+    go "true"  = JsonBool True
+    go "false" = JsonBool False
+    go _       = error "unreachable"
+
+jsonValueP :: Parser JsonValue
+jsonValueP = jsonNullP
