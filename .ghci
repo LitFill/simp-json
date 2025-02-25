@@ -2,3 +2,4 @@
 :def hoogle \s -> pure $ ":!hoogle --count=5 '"++ s ++"'"
 :set -Wall
 :set -fno-warn-unused-imports
+:set +s
