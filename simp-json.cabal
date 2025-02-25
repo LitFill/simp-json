@@ -3,7 +3,7 @@ name:               simp-json
 version:            0.1.0.0
 synopsis:           simple json parser in Haskell
 description:        simple json parser in Haskell
-homepage:           https://github.com/LitFill/???????
+homepage:           https://github.com/LitFill/simp-json.git
 license:            MIT
 license-file:       LICENSE
 author:             LitFill
