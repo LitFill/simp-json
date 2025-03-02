@@ -1,0 +1,11 @@
+{
+    "a_null" : null,
+    "a_true" : true,
+    "a_number" : 69,
+    "a_string" : "urmom",
+    "a_array" : [null, false, 0, "nil"],
+    "a_object" : {
+        "funny" : 69,
+        "urmom" : "so big"
+    }
+}
