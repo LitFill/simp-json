@@ -3,12 +3,13 @@
 
 module Json.Simple where
 
-import Data.Kind           (Type)
-import Data.Map.Strict     (Map)
 import Control.Applicative (Alternative (..))
 import Data.Char           (isDigit, isSpace)
-import Text.Read           (readEither)
+import Data.Kind           (Type)
+import Data.List           (intercalate)
+import Data.Map.Strict     (Map)
 import GHC.Generics        (Generic)
+import Text.Read           (readEither)
 import Fmt
     ( (+|)
     , fmt
@@ -20,7 +21,6 @@ import Fmt
     )
 
 import Data.Map.Strict qualified as Map
-import Data.List (intercalate)
 
 data JsonValue :: Type where
     JsonNull   :: JsonValue
