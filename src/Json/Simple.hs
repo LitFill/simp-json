@@ -106,10 +106,10 @@ instance Alternative Parser where
     (Parser p1) <|> (Parser p2) = Parser $ \input -> p1 input <|> p2 input
 
 jsonNullP :: Parser JsonValue
-jsonNullP = (\_ -> JsonNull) <$> stringP "null"
+jsonNullP = JsonNull <$ stringP "null"
 
 stringP :: String -> Parser String
-stringP = sequenceA . map charP
+stringP = traverse charP
 
 charP :: Char -> Parser Char
 charP c = Parser go
