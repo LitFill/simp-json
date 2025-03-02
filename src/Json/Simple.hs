@@ -119,11 +119,10 @@ charP c = Parser go
     go []                = failR "Empty input"
 
 jsonBoolP :: Parser JsonValue
-jsonBoolP = go <$> (stringP "true" <|> stringP "false")
+jsonBoolP = jsonTrue <|> jsonFalse
   where
-    go "true"  = JsonBool True
-    go "false" = JsonBool False
-    go _       = error "unreachable"
+    jsonTrue  = JsonBool True  <$ stringP "true"
+    jsonFalse = JsonBool False <$ stringP "false"
 
 spanP :: (Char -> Bool) -> Parser String
 spanP f = Parser $ pure . span f
