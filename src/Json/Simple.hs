@@ -127,11 +127,12 @@ jsonNumberP = Parser $ \input ->  do
     num <- readResult numStr
     pure (JsonNumber num, input')
 
+stringLiteral :: Parser String
+stringLiteral = charP '"' *> spanP (/= '"') <* charP '"'
+-- TODO: add handling of escape char
+
 jsonStringP :: Parser JsonValue
-jsonStringP = JsonString <$> go
-  where
-    go = charP '"' *> spanP (/= '"') <* charP '"'
-    -- TODO: add handling of escape char
+jsonStringP = JsonString <$> stringLiteral
 
 wsP :: Parser String
 wsP = spanP isSpace
@@ -152,6 +153,20 @@ jsonArrayP = JsonArray <$> go
   where
     go = charP '[' *> wsP *> elemP <* wsP <* charP ']'
 
+jsonObjectP :: Parser JsonValue
+jsonObjectP = JsonObject <$> go
+  where
+    go = charP '{' *> wsP *> memberP <* wsP <* charP '}'
+
+memberP :: Parser (Map String JsonValue)
+memberP = Map.fromList <$> sepBy (wsP *> commaP <* wsP) pair
+  where
+    pair =
+        (\key _ value -> (key, value))
+        <$> stringLiteral
+        <*> (wsP *> charP ':' <* wsP)
+        <*> jsonValueP
+
 jsonValueP :: Parser JsonValue
 jsonValueP =
     jsonNullP
@@ -159,3 +174,15 @@ jsonValueP =
     <|> jsonNumberP
     <|> jsonStringP
     <|> jsonArrayP
+    <|> jsonObjectP
+
+parseJson :: String -> JsonValue
+parseJson =
+    either error fst
+    . getEither
+    . runParser jsonValueP
+
+parseFile :: FilePath -> IO JsonValue
+parseFile fpath = do
+    input <- readFile fpath
+    return $ parseJson input
