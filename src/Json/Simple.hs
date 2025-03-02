@@ -5,11 +5,19 @@ module Json.Simple where
 
 import Data.Kind           (Type)
 import Data.Map.Strict     (Map)
-import Fmt
 import Control.Applicative (Alternative (..))
 import Data.Char           (isDigit, isSpace)
 import Text.Read           (readEither)
 import GHC.Generics        (Generic)
+import Fmt
+    ( (+|)
+    , fmt
+    , (|+)
+    , listF
+    , genericF
+    , Buildable(..)
+    , Builder
+    )
 
 import Data.Map.Strict qualified as Map
 
