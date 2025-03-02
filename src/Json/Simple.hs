@@ -20,11 +20,12 @@ import Fmt
     )
 
 import Data.Map.Strict qualified as Map
+import Data.List (intercalate)
 
 data JsonValue :: Type where
     JsonNull   :: JsonValue
     JsonBool   :: Bool        -> JsonValue
-    JsonNumber :: Integer     -> JsonValue
+    JsonNumber :: Integer     -> JsonValue -- TODO: see ./TODO.md
     JsonString :: String      -> JsonValue
     JsonArray  :: [JsonValue] -> JsonValue
     JsonObject :: Map String JsonValue -> JsonValue
@@ -46,7 +47,7 @@ buildPair
 buildPair (a, b) = "("+| a |+", "+| b |+")"
 
 newtype Result :: Type -> Type where
-    Result :: { getEither :: Either String a } -> Result a
+    Result :: { getEither :: Either [String] a } -> Result a
     deriving (Generic)
 
 instance {-# Overlappable #-} Buildable a => Show (Result a) where
@@ -55,7 +56,28 @@ instance {-# Overlappable #-} Buildable a => Show (Result a) where
 instance (Buildable a, Buildable b) => Show (Result (a, b)) where
     show r = case getEither r of
         Right pair -> show (Result (Right (buildPair pair)))
-        Left err -> err
+        Left  errs -> intercalate "\n" errs
+
+instance Functor Result where
+    fmap f (Result ei) = Result $ fmap f ei
+
+instance Applicative Result where
+    pure = Result . pure
+    Result f <*> Result ei = Result $ f <*> ei
+
+instance Alternative Result where
+    empty = failR "empty"
+
+    Result (Right a) <|> _                = Result (Right a)
+    Result (Left  _) <|> Result (Right b) = Result (Right b)
+    Result (Left e1) <|> Result (Left e2) = Result (Left (e1 ++ e2))
+
+instance Monad Result where
+  (>>=) :: Result a -> (a -> Result b) -> Result b
+  Result e1 >>= f = Result $ e1 >>= getEither . f
+
+failR :: String -> Result a
+failR err = Result $ Left [err]
 
 newtype Parser :: Type -> Type where
     Parser ::
@@ -77,28 +99,8 @@ instance Applicative Parser where
             (a1, input2) <- getEither $ a input1
             pure (f1 a1, input2)
 
-instance Functor Result where
-    fmap f (Result ei) = Result $ fmap f ei
-
-instance Applicative Result where
-    pure = Result . pure
-    Result f <*> Result ei = Result $ f <*> ei
-
-instance Alternative Result where
-    empty = Result . Left $ "empty"
-
-    Result (Right a) <|> _ = Result (Right a)
-    Result (Left  _) <|> b = b
-
-instance Monad Result where
-  (>>=) :: Result a -> (a -> Result b) -> Result b
-  Result e1 >>= f = Result $ e1 >>= getEither . f
-
-failR :: String -> Result a
-failR = Result . Left
-
 instance Alternative Parser where
-    empty = Parser $ \_ -> Result $ Left "empty parser"
+    empty = Parser $ \_ -> failR "empty parser"
 
     (<|>) :: Parser a -> Parser a -> Parser a
     (Parser p1) <|> (Parser p2) = Parser $ \input -> p1 input <|> p2 input
@@ -127,7 +129,10 @@ spanP :: (Char -> Bool) -> Parser String
 spanP f = Parser $ pure . span f
 
 readResult :: Read a => String -> Result a
-readResult = Result . readEither
+readResult str = Result (either (\x-> Left [x]) Right (readEither str))
+
+mapLeft :: (a -> c) -> Either a b -> Either c b
+mapLeft f = either (Left . f) Right
 
 jsonNumberP :: Parser JsonValue
 jsonNumberP = Parser $ \input ->  do
@@ -184,13 +189,13 @@ jsonValueP =
     <|> jsonArrayP
     <|> jsonObjectP
 
-parseJson :: String -> JsonValue
+parseJson :: String -> Either [String] JsonValue
 parseJson =
-    either error fst
+    fmap fst
     . getEither
     . runParser jsonValueP
 
-parseFile :: FilePath -> IO JsonValue
+parseFile :: FilePath -> IO (Either [String] JsonValue)
 parseFile fpath = do
     input <- readFile fpath
     return $ parseJson input
