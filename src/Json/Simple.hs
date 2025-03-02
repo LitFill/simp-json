@@ -173,11 +173,9 @@ jsonObjectP = JsonObject <$> go
 memberP :: Parser (Map String JsonValue)
 memberP = Map.fromList <$> sepBy (wsP *> commaP <* wsP) pair
   where
-    pair =
-        (\key _ value -> (key, value))
-        <$> stringLiteral
-        <*> (wsP *> charP ':' <* wsP)
-        <*> jsonValueP
+    pair = liftA2 (,)
+        (stringLiteral <* wsP <* charP ':' <* wsP)
+        jsonValueP
 
 jsonValueP :: Parser JsonValue
 jsonValueP =
